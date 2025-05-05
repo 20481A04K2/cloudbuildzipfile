@@ -12,9 +12,15 @@ steps:
           echo "Repository already exists."
         fi
 
-  # Step 2: Zip the application source code
-  - name: 'gcr.io/cloud-builders/zip'
-    args: ['-r', '/workspace/my-app.zip', '.']
+  # Step 2: Zip the application source code (GitHub repo contents)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Zipping source code..."
+        apt-get update && apt-get install -y zip
+        zip -r /workspace/my-app.zip .
 
   # Step 3: Upload ZIP to Artifact Registry (generic)
   - name: 'gcr.io/cloud-builders/gcloud'
