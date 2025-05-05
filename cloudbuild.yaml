@@ -1,29 +1,21 @@
 steps:
-  # Step 1: Download the ZIP file from GitHub
+  # Step 1: Download ZIP from GitHub
   - name: 'gcr.io/cloud-builders/curl'
-    entrypoint: 'bash'
     args:
-      - '-c'
-      - |
-        echo "Downloading the ZIP file from GitHub..."
-        curl -L -o /workspace/my-app.zip "https://github.com/your-username/your-repo/archive/refs/heads/main.zip" # Replace with your GitHub URL
+      - '-L'
+      - 'https://github.com/your-username/your-repo/archive/refs/heads/main.zip'
+      - '-o'
+      - 'source.zip'
 
-  # Step 2: Upload the ZIP file to Artifact Registry
+  # Step 2: Upload ZIP file to Artifact Registry
   - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
     args:
-      - '-c'
-      - |
-        echo "Uploading ZIP to Artifact Registry..."
-        ACCESS_TOKEN=$$(gcloud auth print-access-token)
-        curl -X PUT -H "Authorization: Bearer $$ACCESS_TOKEN" \
-             -H "Content-Type: application/zip" \
-             --data-binary @/workspace/my-app.zip \
-             "https://asia-east1-artifactregistry.googleapis.com/v1/projects/enhub-cloud-interns/locations/asia-east1/repositories/vamsi-generic-repo/packages/my-app/versions/1.0.0:upload" # Replace with your Artifact Registry endpoint
-
-images:
-  - 'gcr.io/cloud-builders/curl'
-  - 'gcr.io/cloud-builders/gcloud'
-
-options:
-  logging: CLOUD_LOGGING_ONLY
+      - 'artifacts'
+      - 'repositories'
+      - 'upload'
+      - '--project=enhub-cloud-interns'
+      - '--location=asia-east1'
+      - '--repository=vamsi-generic-repo'
+      - '--package=my-app'
+      - '--version=1.0.0'
+      - '--file=source.zip'
