@@ -24,12 +24,19 @@ steps:
         apt-get update && apt-get install -y zip
         zip -r /workspace/my-app.zip .
 
-  # Step 3: Upload the zip to Cloud Storage (use gsutil builder)
-  - name: 'gcr.io/cloud-builders/gsutil'
+  # Step 3: Upload the zip to Artifact Registry
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
     args:
-      - 'cp'
-      - '/workspace/my-app.zip'
-      - 'gs://vamsi-artifact-bucket/my-app.zip'
+      - '-c'
+      - |
+        echo "Uploading zip file to Artifact Registry..."
+        gcloud artifacts docker images upload \
+          --repository="vamsi-generic-repo" \
+          --location="asia-east1" \
+          --project="enhub-cloud-interns" \
+          --file="/workspace/my-app.zip" \
+          "gcr.io/enhub-cloud-interns/my-app.zip"
 
   # Step 4: Delete existing VM if exists
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -67,16 +74,21 @@ steps:
       - --project=enhub-cloud-interns
       - --command=sudo apt-get update && sudo apt-get install -y unzip curl python3
 
-  # Step 7: Download the zip from Cloud Storage inside VM
+  # Step 7: Download the zip from Artifact Registry inside VM
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        gcloud compute ssh sajja_vamsi@my-vm-instance --zone=asia-east1-b --project=enhub-cloud-interns \
-        --command="gsutil cp gs://vamsi-artifact-bucket/my-app.zip ~/my-app.zip"
+        echo "Downloading zip file from Artifact Registry..."
+        gcloud artifacts download \
+          --repository="vamsi-generic-repo" \
+          --location="asia-east1" \
+          --project="enhub-cloud-interns" \
+          "my-app.zip" \
+          "~/my-app.zip"
 
-  # Step 8: SSH and unzip & run app
+  # Step 8: SSH, unzip and run the app on the VM
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
