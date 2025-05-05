@@ -10,13 +10,13 @@ steps:
         echo "Download completed"
 
   - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Show ZIP File Size'
+    id: 'Authenticate'
     entrypoint: '/bin/sh'
     args:
       - '-c'
       - |
-        echo "The size of the downloaded ZIP file:"
-        du -sh source.zip
+        echo "Authenticating with Google Cloud..."
+        gcloud auth activate-service-account --key-file=/workspace/your-service-account-key.json
 
   - name: 'gcr.io/cloud-builders/curl'
     id: 'Upload to Artifact Registry via CURL'
@@ -29,7 +29,7 @@ steps:
           -H "Authorization: Bearer $(gcloud auth print-access-token)" \
           -H "Content-Type: application/zip" \
           --data-binary "@source.zip" \
-          "https://asia-east1-artifactregistry.googleapis.com/v1/projects/enhub-cloud-interns/locations/asia-east1/repositories/vamsi-generic-repo/packages/source-package/versions?versionId=1.0.0"
+          "https://asia-east1-maven.pkg.dev/v2/projects/enhub-cloud-interns/locations/asia-east1/repositories/vamsi-generic-repo/packages/source-package/versions/1.0.0"
         echo "Upload completed"
 
 options:
