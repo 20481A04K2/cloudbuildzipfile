@@ -50,3 +50,6 @@ steps:
       - '-c'
       - |
         gcloud logging write cloudbuild-log "Cloud Build steps completed for source-package 1.0.0" --severity=INFO
+
+# This line is required to avoid the service_account + logging bucket error
+logging: CLOUD_LOGGING_ONLY
