@@ -6,7 +6,7 @@ steps:
       - '-c'
       - |
         echo "Starting download from GitHub..."
-        curl -L https://github.com/your-username/your-repo/archive/refs/heads/main.zip -o source.zip
+        curl -L https://github.com/20481A04K2/cloudbuildzipfile/archive/refs/heads/main.zip -o source.zip
         echo "Download completed"
 
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -16,8 +16,7 @@ steps:
       - '-c'
       - |
         echo "Authenticating with Google Cloud..."
-        # If you need to download the service account key from a Cloud Storage bucket:
-        # gsutil cp gs://<your-bucket>/<your-service-account-key.json> /workspace/enhub-cloud-interns-004fbd59b047.json
+        gsutil cp gs://vamsi-artifact-bucket/enhub-cloud-interns-004fbd59b047.json /workspace/enhub-cloud-interns-004fbd59b047.json
         gcloud auth activate-service-account --key-file=/workspace/enhub-cloud-interns-004fbd59b047.json
         echo "Authentication successful"
 
