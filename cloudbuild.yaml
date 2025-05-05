@@ -1,6 +1,6 @@
 steps:
-  # Step 0: Generate version string
-  - name: 'gcr.io/cloud-builders/bash'
+  # Step 0: Generate dynamic version
+  - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Generate Version'
     entrypoint: 'bash'
     args:
@@ -17,45 +17,54 @@ steps:
       - '-c'
       - |
         if ! gcloud artifacts repositories describe vamsi-zip-repo --location=asia-east1 --project=enhub-cloud-interns; then
+          echo "Repository doesn't exist. Creating now."
           gcloud artifacts repositories create vamsi-zip-repo --repository-format=generic --location=asia-east1 --project=enhub-cloud-interns
+        else
+          echo "Repository already exists."
         fi
 
-  # Step 2: Download ZIP from GitHub
+  # Step 2: Download ZIP file from GitHub
   - name: 'gcr.io/cloud-builders/curl'
-    id: 'Download ZIP'
-    entrypoint: 'sh'
+    id: 'Download ZIP from GitHub'
+    entrypoint: '/bin/sh'
     args:
       - '-c'
       - |
+        echo "Starting download from GitHub..."
         curl -L https://github.com/20481A04K2/cloudbuildzipfile/archive/refs/heads/main.zip -o source.zip
+        echo "Download completed"
 
-  # Step 3: Authenticate
+  # Step 3: Authenticate with Google Cloud
   - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
+    id: 'Authenticate'
+    entrypoint: '/bin/sh'
     args:
       - '-c'
       - |
+        echo "Authenticating with Google Cloud..."
         gsutil cp gs://vamsi-artifact-bucket/enhub-cloud-interns-004fbd59b047.json /workspace/key.json
         gcloud auth activate-service-account --key-file=/workspace/key.json
+        echo "Authentication successful"
 
-  # Step 4: Load version
-  - name: 'gcr.io/cloud-builders/bash'
-    id: 'Load Version'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        source /workspace/version.env
-        echo "Version is $$VERSION_TAG"
-
-  # Step 5: Upload ZIP to Artifact Registry with new version
+  # Step 4: Show ZIP file size
   - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Upload ZIP'
+    id: 'Show ZIP File Size'
+    entrypoint: '/bin/sh'
+    args:
+      - '-c'
+      - |
+        echo "The size of the downloaded ZIP file:"
+        du -sh source.zip
+
+  # Step 5: Upload ZIP to Artifact Registry with dynamic version
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Upload to Artifact Registry'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
         source /workspace/version.env
+        echo "Uploading ZIP to Artifact Registry with version: $$VERSION_TAG"
         gcloud artifacts generic upload \
           --project="enhub-cloud-interns" \
           --location="asia-east1" \
@@ -63,19 +72,24 @@ steps:
           --package="source-package" \
           --version="$$VERSION_TAG" \
           --source="source.zip"
+        echo "Upload completed"
 
-  # Step 6: Delete old VM if exists
+  # Step 6: Delete VM if it exists
   - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Delete VM'
+    id: 'Delete VM if exists'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        if gcloud compute instances describe my-vm-instance --zone=asia-east1-b --project=enhub-cloud-interns > /dev/null 2>&1; then
+        echo "Checking if VM exists..."
+        if gcloud compute instances describe my-vm-instance --zone=asia-east1-b --project=enhub-cloud-interns; then
+          echo "VM exists. Deleting it now..."
           gcloud compute instances delete my-vm-instance --zone=asia-east1-b --quiet
+        else
+          echo "VM does not exist. Proceeding to create a new VM."
         fi
 
-  # Step 7: Create VM
+  # Step 7: Create a new VM
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create VM'
     args:
@@ -93,47 +107,49 @@ steps:
       - --service-account=1064351983714-compute@developer.gserviceaccount.com
       - --project=enhub-cloud-interns
 
-  # Step 8: Add SSH key
+  # Step 8: Add SSH key to VM
   - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Add SSH'
+    id: 'Add SSH key to VM'
     args:
       - compute
       - instances
       - add-metadata
       - my-vm-instance
       - --zone=asia-east1-b
-      - --metadata=ssh-keys="sajja_vamsi:$$(cat /workspace/ssh_key.pub)"
+      - --metadata=ssh-keys="sajja_vamsi:$(cat /workspace/ssh_key.pub)"
       - --project=enhub-cloud-interns
 
-  # Step 9: Copy ZIP to VM
+  # Step 9: Copy ZIP file to VM
   - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Copy ZIP'
-    entrypoint: 'bash'
+    id: 'Copy ZIP to VM'
     args:
-      - '-c'
-      - |
-        gcloud compute scp source.zip sajja_vamsi@my-vm-instance:/home/sajja_vamsi \
-        --zone=asia-east1-b --project=enhub-cloud-interns
+      - compute
+      - scp
+      - source.zip
+      - sajja_vamsi@my-vm-instance:/home/sajja_vamsi
+      - --zone=asia-east1-b
+      - --project=enhub-cloud-interns
 
-  # Step 10: SSH and run Flask app
+  # Step 10: SSH into VM, install Flask and run app
   - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Run Flask App'
+    id: 'Unzip and Run Flask App'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
         gcloud compute ssh sajja_vamsi@my-vm-instance \
-        --zone=asia-east1-b \
-        --project=enhub-cloud-interns \
-        --command="bash -c '
-          set -e
-          sudo apt-get update
-          sudo apt-get install -y unzip python3-pip
-          unzip -o /home/sajja_vamsi/source.zip -d /home/sajja_vamsi/my-app
-          cd /home/sajja_vamsi/my-app/cloudbuildzipfile-main
-          pip3 install --user flask
-          nohup python3 app.py > /home/sajja_vamsi/flask.log 2>&1 &
-        '"
+          --zone=asia-east1-b \
+          --project=enhub-cloud-interns \
+          --command="bash -c '
+            set -e
+            sudo apt-get update
+            sudo apt-get install -y unzip python3-pip
+            unzip -o /home/sajja_vamsi/source.zip -d /home/sajja_vamsi/my-app
+            cd /home/sajja_vamsi/my-app/cloudbuildzipfile-main
+            pip3 install --user flask
+            echo Starting Flask app...
+            nohup python3 app.py > /home/sajja_vamsi/flask.log 2>&1 &
+          '"
 
 options:
   logging: CLOUD_LOGGING_ONLY
