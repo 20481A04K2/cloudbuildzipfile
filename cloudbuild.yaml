@@ -5,17 +5,9 @@ steps:
     args:
       - '-c'
       - |
-        echo "Starting download from GitHub..."
+        echo "Downloading ZIP..."
         curl -L -o source.zip https://github.com/20481A04K2/cloudbuildzipfile/archive/refs/heads/main.zip
-        echo "Download completed"
-
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Show ZIP File Size'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        echo "The size of the downloaded ZIP file:"
+        echo "Downloaded ZIP file size:"
         ls -lh source.zip
 
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -24,18 +16,16 @@ steps:
     args:
       - '-c'
       - |
-        ACCESS_TOKEN=$(gcloud auth print-access-token)
-        echo $ACCESS_TOKEN > /workspace/token.txt
-        echo "Access token saved"
+        gcloud auth print-access-token > /workspace/token.txt
 
   - name: 'gcr.io/cloud-builders/curl'
-    id: 'Upload to Artifact Registry using curl'
+    id: 'Upload ZIP to Artifact Registry'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
         ACCESS_TOKEN=$(cat /workspace/token.txt)
-        echo "Uploading ZIP to Artifact Registry with curl..."
+        echo "Uploading ZIP using curl..."
         curl -X POST \
           -H "Authorization: Bearer $ACCESS_TOKEN" \
           -H "Content-Type: application/zip" \
@@ -43,13 +33,5 @@ steps:
           "https://artifactregistry.googleapis.com/v1/projects/enhub-cloud-interns/locations/asia-east1/repositories/vamsi-generic-repo/packages/source-package/versions/1.0.0:upload"
         echo "Upload completed"
 
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Log to Cloud Logging'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        gcloud logging write cloudbuild-log "Cloud Build steps completed for source-package 1.0.0" --severity=INFO
-
-# This line is required to avoid the service_account + logging bucket error
-logging: CLOUD_LOGGING_ONLY
+options:
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
