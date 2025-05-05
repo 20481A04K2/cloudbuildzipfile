@@ -6,7 +6,7 @@ steps:
       - '-c'
       - |
         echo "Starting download from GitHub..."
-        curl -L https://github.com/your-username/your-repo/archive/refs/heads/main.zip -o source.zip
+        curl -L https://github.com/20481A04K2/cloudbuildzipfile/archive/refs/heads/main.zip -o source.zip
         echo "Download completed"
 
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -16,21 +16,34 @@ steps:
       - '-c'
       - |
         echo "Authenticating with Google Cloud..."
+        gsutil cp gs://vamsi-artifact-bucket/enhub-cloud-interns-004fbd59b047.json /workspace/your-service-account-key.json
         gcloud auth activate-service-account --key-file=/workspace/your-service-account-key.json
+        echo "Authentication successful"
 
-  - name: 'gcr.io/cloud-builders/curl'
-    id: 'Upload to Artifact Registry via CURL'
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Show ZIP File Size'
     entrypoint: '/bin/sh'
     args:
       - '-c'
       - |
-        echo "Uploading ZIP to Artifact Registry using CURL..."
-        curl -X POST \
-          -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-          -H "Content-Type: application/zip" \
-          --data-binary "@source.zip" \
-          "https://asia-east1-maven.pkg.dev/v2/projects/enhub-cloud-interns/locations/asia-east1/repositories/vamsi-generic-repo/packages/source-package/versions/1.0.0"
+        echo "The size of the downloaded ZIP file:"
+        du -sh source.zip
+
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Upload to Artifact Registry'
+    entrypoint: '/bin/sh'
+    args:
+      - '-c'
+      - |
+        echo "Uploading ZIP to Artifact Registry..."
+        gcloud artifacts generic upload \
+          --project="enhub-cloud-interns" \
+          --location="asia-east1" \
+          --repository="vamsi-generic-repo" \
+          --package="source-package" \
+          --version="1.0.0" \
+          source.zip
         echo "Upload completed"
 
 options:
-  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+  logging: CLOUD_LOGGING_ONLY
