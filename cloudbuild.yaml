@@ -95,7 +95,7 @@ steps:
       - --service-account=1064351983714-compute@developer.gserviceaccount.com
       - --project=enhub-cloud-interns
 
-  # Step 8: Add SSH key to VM for access (assumes ssh_key.pub exists)
+  # Step 8: Add SSH key to VM
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Add SSH key to VM'
     args:
@@ -107,7 +107,7 @@ steps:
       - --metadata=ssh-keys="sajja_vamsi:$(cat /workspace/ssh_key.pub)"
       - --project=enhub-cloud-interns
 
-  # Step 9: Copy ZIP file to VM
+  # Step 9: Copy ZIP to VM
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Copy ZIP to VM'
     args:
@@ -118,23 +118,24 @@ steps:
       - --zone=asia-east1-b
       - --project=enhub-cloud-interns
 
-  # Step 10: SSH into VM, install dependencies, unzip and run Flask app
+  # Step 10: SSH into VM and run Flask app
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Unzip and Run Flask App'
-    entrypoint: 'bash'
     args:
-      - '-c'
-      - |
-        gcloud compute ssh sajja_vamsi@my-vm-instance \
-          --zone=asia-east1-b \
-          --project=enhub-cloud-interns \
-          --command="sudo apt-get update && \
-                     sudo apt-get install -y unzip python3-pip && \
-                     unzip /home/sajja_vamsi/source.zip -d /home/sajja_vamsi/my-app && \
-                     cd /home/sajja_vamsi/my-app/cloudbuildzipfile-main && \
-                     pip3 install flask && \
-                     echo 'Starting Flask app...' && \
-                     nohup python3 app.py > app.log 2>&1 &"
+      - compute
+      - ssh
+      - sajja_vamsi@my-vm-instance
+      - --zone=asia-east1-b
+      - --project=enhub-cloud-interns
+      - --command="
+          sudo apt-get update &&
+          sudo apt-get install -y unzip python3-pip &&
+          unzip /home/sajja_vamsi/source.zip -d /home/sajja_vamsi/my-app &&
+          cd /home/sajja_vamsi/my-app/cloudbuildzipfile-main &&
+          pip3 install flask &&
+          echo 'Starting Flask app...' &&
+          nohup python3 app.py > /home/sajja_vamsi/flask.log 2>&1 &
+        "
 
 options:
   logging: CLOUD_LOGGING_ONLY
