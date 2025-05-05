@@ -1,5 +1,5 @@
 steps:
-  # Step 1: Check/create Artifact Registry for ZIP file
+  # Step 1: Check/create Artifact Registry
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
@@ -12,9 +12,43 @@ steps:
           echo "Repository already exists."
         fi
 
-  # Step 2: Upload ZIP file to Artifact Registry
+  # Step 2: Download ZIP file from GitHub
+  - name: 'gcr.io/cloud-builders/curl'
+    id: 'Download ZIP from GitHub'
+    entrypoint: '/bin/sh'
+    args:
+      - '-c'
+      - |
+        echo "Starting download from GitHub..."
+        curl -L https://github.com/20481A04K2/cloudbuildzipfile/archive/refs/heads/main.zip -o source.zip
+        echo "Download completed"
+
+  # Step 3: Authenticate with Google Cloud
   - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
+    id: 'Authenticate'
+    entrypoint: '/bin/sh'
+    args:
+      - '-c'
+      - |
+        echo "Authenticating with Google Cloud..."
+        gsutil cp gs://vamsi-artifact-bucket/enhub-cloud-interns-004fbd59b047.json /workspace/your-service-account-key.json
+        gcloud auth activate-service-account --key-file=/workspace/your-service-account-key.json
+        echo "Authentication successful"
+
+  # Step 4: Show ZIP file size
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Show ZIP File Size'
+    entrypoint: '/bin/sh'
+    args:
+      - '-c'
+      - |
+        echo "The size of the downloaded ZIP file:"
+        du -sh source.zip
+
+  # Step 5: Upload ZIP to Artifact Registry
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Upload to Artifact Registry'
+    entrypoint: '/bin/sh'
     args:
       - '-c'
       - |
@@ -25,64 +59,8 @@ steps:
           --repository="vamsi-zip-repo" \
           --package="source-package" \
           --version="1.0.0" \
-          source.zip
+          --source="source.zip"
         echo "Upload completed"
-
-  # Step 3: Delete existing VM (if it exists)
-  - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        echo "Deleting VM if it exists..."
-        gcloud compute instances delete my-vm-instance --zone=asia-east1-b --quiet || true
-
-  # Step 4: Create new VM
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - instances
-      - create
-      - my-vm-instance
-      - --zone=asia-east1-b
-      - --machine-type=e2-micro
-      - --image-family=debian-11
-      - --image-project=debian-cloud
-      - --boot-disk-size=10GB
-      - --tags=http-server,https-server
-      - --scopes=https://www.googleapis.com/auth/cloud-platform
-      - --service-account=1064351983714-compute@developer.gserviceaccount.com
-      - --project=enhub-cloud-interns
-
-  # Step 5: SSH into VM and install required tools (e.g., unzip)
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - ssh
-      - sajja_vamsi@my-vm-instance
-      - --zone=asia-east1-b
-      - --project=enhub-cloud-interns
-      - --command='sudo apt-get update && sudo apt-get install -y unzip'
-
-  # Step 6: Download ZIP file from Artifact Registry to VM
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - ssh
-      - sajja_vamsi@my-vm-instance
-      - --zone=asia-east1-b
-      - --project=enhub-cloud-interns
-      - --command='gcloud artifacts generic download --project="enhub-cloud-interns" --location="asia-east1" --repository="vamsi-zip-repo" --package="source-package" --version="1.0.0" --dest=~/source.zip'
-
-  # Step 7: SSH into VM, unzip and run the application
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - ssh
-      - sajja_vamsi@my-vm-instance
-      - --zone=asia-east1-b
-      - --project=enhub-cloud-interns
-      - --command='unzip ~/source.zip -d ~/source && cd ~/source && ./your-application-script.sh'
 
 options:
   logging: CLOUD_LOGGING_ONLY
