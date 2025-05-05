@@ -24,10 +24,9 @@ steps:
         apt-get update && apt-get install -y zip
         zip -r /workspace/my-app.zip .
 
-  # Step 3: Upload the zip to Cloud Storage
-  - name: 'gcr.io/cloud-builders/gcloud'
+  # Step 3: Upload the zip to Cloud Storage (use gsutil builder)
+  - name: 'gcr.io/cloud-builders/gsutil'
     args:
-      - 'gsutil'
       - 'cp'
       - '/workspace/my-app.zip'
       - 'gs://vamsi-artifact-bucket/my-app.zip'
