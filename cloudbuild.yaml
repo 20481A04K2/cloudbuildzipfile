@@ -28,11 +28,13 @@ steps:
       - '-c'
       - |
         echo "Uploading ZIP to Artifact Registry..."
-        gcloud artifacts files upload source.zip \
-          --project=enhub-cloud-interns \
-          --location=asia-east1 \
-          --repository=vamsi-generic-repo \
-          --destination-path=source.zip
+        gcloud artifacts generic upload \
+          --project="enhub-cloud-interns" \
+          --location="asia-east1" \
+          --repository="vamsi-generic-repo" \
+          --package="source-package" \
+          --version="1.0.0" \
+          --file="source.zip"
         echo "Upload completed"
 
 options:
