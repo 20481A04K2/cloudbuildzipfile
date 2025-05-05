@@ -16,6 +16,8 @@ steps:
       - '-c'
       - |
         echo "Authenticating with Google Cloud..."
+        # If you need to download the service account key from a Cloud Storage bucket:
+        # gsutil cp gs://<your-bucket>/<your-service-account-key.json> /workspace/enhub-cloud-interns-004fbd59b047.json
         gcloud auth activate-service-account --key-file=/workspace/enhub-cloud-interns-004fbd59b047.json
         echo "Authentication successful"
 
@@ -35,13 +37,13 @@ steps:
       - '-c'
       - |
         echo "Uploading ZIP to Artifact Registry..."
-        gcloud artifacts generic upload \
+        gcloud artifacts packages versions upload \
           --project="enhub-cloud-interns" \
           --location="asia-east1" \
           --repository="vamsi-generic-repo" \
-          --package="source-package" \
+          --package-name="source-package" \
           --version="1.0.0" \
-          --file="source.zip"  # Corrected argument for uploading the file
+          source.zip
         echo "Upload completed"
 
 options:
