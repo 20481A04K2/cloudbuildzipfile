@@ -17,7 +17,17 @@ steps:
         curl -L https://github.com/your-username/your-repo/archive/refs/heads/main.zip -o source.zip
         echo "Download completed"
         
-  # Step 2: Upload ZIP file to Artifact Registry
+  # Step 2: Show the size of the downloaded ZIP file
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Show ZIP File Size'
+    entrypoint: '/bin/sh'
+    args:
+      - '-c'
+      - |
+        echo "The size of the downloaded ZIP file:"
+        du -sh source.zip
+        
+  # Step 3: Upload ZIP file to Artifact Registry
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Upload to Artifact Registry'
     args:
@@ -27,9 +37,9 @@ steps:
       - '--project=enhub-cloud-interns'
       - '--location=asia-east1'
       - '--repository=vamsi-generic-repo'
-      - '--file=source.zip'
-      - '--destination=your-destination-path'
-    waitFor: ['Download ZIP from GitHub']
+      - '--destination=your-destination-path/source.zip'
+      - 'source.zip'
+    waitFor: ['Show ZIP File Size']
     # Explicit logging for this step
     entrypoint: '/bin/sh'
     args:
@@ -40,8 +50,8 @@ steps:
           --project=enhub-cloud-interns \
           --location=asia-east1 \
           --repository=vamsi-generic-repo \
-          --file=source.zip \
-          --destination=your-destination-path
+          --destination=your-destination-path/source.zip \
+          --file=source.zip
         echo "Upload completed"
 
 # Cloud Logging: Enable Cloud Build logs and log custom messages to Cloud Logging.
