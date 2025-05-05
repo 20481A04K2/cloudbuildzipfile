@@ -132,6 +132,8 @@ steps:
           unzip /home/sajja_vamsi/source.zip -d /home/sajja_vamsi/my-app;
           echo 'Listing files in extracted directory:';
           ls -l /home/sajja_vamsi/my-app;
+          echo 'Making executable the application...';
+          chmod +x /home/sajja_vamsi/my-app/your-application-executable;
           echo 'Running the application...';
           cd /home/sajja_vamsi/my-app;
           ./your-application-executable;
