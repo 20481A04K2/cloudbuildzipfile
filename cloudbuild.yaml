@@ -1,35 +1,69 @@
 steps:
-  # Step 1: Zip the application
-  - name: 'ubuntu'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        apt-get update && apt-get install -y zip
-        zip -r my-app.zip .
-
-  # Step 2: Upload the ZIP to Artifact Registry (generic)
-  - name: 'gcr.io/cloud-builders/curl'
-    args:
-      - '-X'
-      - 'POST'
-      - '-H'
-      - 'Authorization: Bearer $(gcloud auth print-access-token)'
-      - '-F'
-      - 'file=@my-app.zip'
-      - 'https://asia-east1-artifactregistry.googleapis.com/v1/projects/enhub-cloud-interns/locations/asia-east1/repositories/vamsi-generic-repo/files/my-app.zip'
-
-  # Step 3: SSH into VM and download the ZIP using curl
+  # Step 1: Check/create Artifact Registry (generic)
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        gcloud compute ssh sajja_vamsi@my-vm-instance --zone=asia-east1-b --project=enhub-cloud-interns \
-        --command="curl -o my-app.zip -H \"Authorization: Bearer \$(gcloud auth print-access-token)\" \
-        https://asia-east1-artifactregistry.googleapis.com/v1/projects/enhub-cloud-interns/locations/asia-east1/repositories/vamsi-generic-repo/files/my-app.zip"
+        if ! gcloud artifacts repositories describe vamsi-generic-repo --location=asia-east1 --project=enhub-cloud-interns; then
+          echo "Repository doesn't exist. Creating now."
+          gcloud artifacts repositories create vamsi-generic-repo \
+            --repository-format=generic \
+            --location=asia-east1 \
+            --project=enhub-cloud-interns
+        else
+          echo "Repository already exists."
+        fi
 
-  # Step 4: SSH and unzip & run app
+  # Step 2: Zip the application source code
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        apt-get update && apt-get install -y zip
+        zip -r /workspace/my-app.zip .
+
+  # Step 3: Upload the ZIP to Artifact Registry using curl
+  - name: 'gcr.io/cloud-builders/curl'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Uploading zip to Artifact Registry..."
+        ACCESS_TOKEN=$(gcloud auth print-access-token)
+        curl -X POST -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+             -H "Content-Type: application/zip" \
+             --data-binary @/workspace/my-app.zip \
+             "https://asia-east1-artifactregistry.googleapis.com/v1/projects/enhub-cloud-interns/locations/asia-east1/repositories/vamsi-generic-repo/packages/my-app/versions?versionId=latest"
+
+  # Step 4: Delete existing VM if exists
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Deleting VM if it exists..."
+        gcloud compute instances delete my-vm-instance --zone=asia-east1-b --quiet || true
+
+  # Step 5: Create new VM
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - compute
+      - instances
+      - create
+      - my-vm-instance
+      - --zone=asia-east1-b
+      - --machine-type=e2-micro
+      - --image-family=debian-11
+      - --image-project=debian-cloud
+      - --boot-disk-size=10GB
+      - --tags=http-server,https-server
+      - --scopes=https://www.googleapis.com/auth/cloud-platform
+      - --service-account=1064351983714-compute@developer.gserviceaccount.com
+      - --project=enhub-cloud-interns
+
+  # Step 6: Install unzip, curl, python3, pip, flask on VM
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
@@ -37,8 +71,34 @@ steps:
       - sajja_vamsi@my-vm-instance
       - --zone=asia-east1-b
       - --project=enhub-cloud-interns
-      - --command=unzip -o my-app.zip -d my-app && cd my-app && nohup python3 app.py > output.log 2>&1 &
+      - --command=sudo apt-get update && sudo apt-get install -y unzip curl python3 python3-pip && pip3 install flask
+
+  # Step 7: Download the ZIP from Artifact Registry to VM
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Downloading ZIP from Artifact Registry..."
+        ACCESS_TOKEN=$(gcloud auth print-access-token)
+        gcloud compute ssh sajja_vamsi@my-vm-instance --zone=asia-east1-b --project=enhub-cloud-interns \
+          --command="curl -X GET -H 'Authorization: Bearer ${ACCESS_TOKEN}' \
+          'https://asia-east1-artifactregistry.googleapis.com/v1/projects/enhub-cloud-interns/locations/asia-east1/repositories/vamsi-generic-repo/packages/my-app/versions/latest:download' \
+          --output ~/my-app.zip"
+
+  # Step 8: Unzip and run app
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - compute
+      - ssh
+      - sajja_vamsi@my-vm-instance
+      - --zone=asia-east1-b
+      - --project=enhub-cloud-interns
+      - --command=unzip -o ~/my-app.zip -d ~/my-app && cd ~/my-app && nohup python3 app.py > output.log 2>&1 &
+
+images:
+  - 'gcr.io/cloud-builders/gcloud'
+  - 'gcr.io/cloud-builders/curl'
 
 options:
   logging: CLOUD_LOGGING_ONLY
-
