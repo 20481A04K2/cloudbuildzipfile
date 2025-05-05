@@ -4,7 +4,7 @@ app = Flask(__name__)
 @app.route('/')
 def hello_world():
     return """Hello, World! from artifact registry  {
-  "db_user": "vamsi",
+  "db_user": "mohan",
   "db_pass": "securepassword123",
   "api_key": "your-api-key-value123"
 } """
