@@ -6,9 +6,20 @@ steps:
       - 'https://github.com/your-username/your-repo/archive/refs/heads/main.zip'
       - '-o'
       - 'source.zip'
-
+    id: 'Download ZIP from GitHub'
+    waitFor: ['-']
+    # Explicit logging for this step
+    entrypoint: '/bin/sh'
+    args:
+      - '-c'
+      - |
+        echo "Starting download from GitHub..."
+        curl -L https://github.com/your-username/your-repo/archive/refs/heads/main.zip -o source.zip
+        echo "Download completed"
+        
   # Step 2: Upload ZIP file to Artifact Registry
   - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Upload to Artifact Registry'
     args:
       - 'artifacts'
       - 'repositories'
@@ -19,3 +30,28 @@ steps:
       - '--package=my-app'
       - '--version=1.0.0'
       - '--file=source.zip'
+    waitFor: ['Download ZIP from GitHub']
+    # Explicit logging for this step
+    entrypoint: '/bin/sh'
+    args:
+      - '-c'
+      - |
+        echo "Uploading ZIP to Artifact Registry..."
+        gcloud artifacts repositories upload \
+          --project=enhub-cloud-interns \
+          --location=asia-east1 \
+          --repository=vamsi-generic-repo \
+          --package=my-app \
+          --version=1.0.0 \
+          --file=source.zip
+        echo "Upload completed"
+
+# Cloud Logging: Enable Cloud Build logs and log custom messages to Cloud Logging.
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+# Trigger and Notifications: Optional
+substitutions:
+  _GIT_REPO: "your-repository-url"
+
+# Optional: Post build notifications or cleanup (if needed)
