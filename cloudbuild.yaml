@@ -1,14 +1,7 @@
 steps:
   # Step 1: Download ZIP from GitHub
   - name: 'gcr.io/cloud-builders/curl'
-    args:
-      - '-L'
-      - 'https://github.com/your-username/your-repo/archive/refs/heads/main.zip'
-      - '-o'
-      - 'source.zip'
     id: 'Download ZIP from GitHub'
-    waitFor: ['-']
-    # Explicit logging for this step
     entrypoint: '/bin/sh'
     args:
       - '-c'
@@ -16,7 +9,7 @@ steps:
         echo "Starting download from GitHub..."
         curl -L https://github.com/your-username/your-repo/archive/refs/heads/main.zip -o source.zip
         echo "Download completed"
-        
+
   # Step 2: Show the size of the downloaded ZIP file
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Show ZIP File Size'
@@ -26,40 +19,21 @@ steps:
       - |
         echo "The size of the downloaded ZIP file:"
         du -sh source.zip
-        
-  # Step 3: Upload ZIP file to Artifact Registry
+
+  # Step 3: Upload to Artifact Registry (Generic repo)
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Upload to Artifact Registry'
-    args:
-      - 'artifacts'
-      - 'generic'
-      - 'upload'
-      - '--project=enhub-cloud-interns'
-      - '--location=asia-east1'
-      - '--repository=vamsi-generic-repo'
-      - '--destination=your-destination-path/source.zip'
-      - 'source.zip'
-    waitFor: ['Show ZIP File Size']
-    # Explicit logging for this step
     entrypoint: '/bin/sh'
     args:
       - '-c'
       - |
         echo "Uploading ZIP to Artifact Registry..."
-        gcloud artifacts generic upload \
+        gcloud artifacts files upload source.zip \
           --project=enhub-cloud-interns \
           --location=asia-east1 \
           --repository=vamsi-generic-repo \
-          --destination=your-destination-path/source.zip \
-          --file=source.zip
+          --destination-path=source.zip
         echo "Upload completed"
 
-# Cloud Logging: Enable Cloud Build logs and log custom messages to Cloud Logging.
 options:
   logging: CLOUD_LOGGING_ONLY
-
-# Trigger and Notifications: Optional
-substitutions:
-  _GIT_REPO: "your-repository-url"
-
-# Optional: Post build notifications or cleanup (if needed)
