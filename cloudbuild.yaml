@@ -6,7 +6,7 @@ steps:
       - '-c'
       - |
         echo "Starting download from GitHub..."
-        curl -L https://github.com/20481A04K2/cloudbuildzipfile/archive/refs/heads/main.zip -o source.zip
+        curl -L https://github.com/your-username/your-repo/archive/refs/heads/main.zip -o source.zip
         echo "Download completed"
 
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -16,8 +16,7 @@ steps:
       - '-c'
       - |
         echo "Authenticating with Google Cloud..."
-        gsutil cp gs://vamsi-artifact-bucket/enhub-cloud-interns-004fbd59b047.json /workspace/your-service-account-key.json
-        gcloud auth activate-service-account --key-file=/workspace/your-service-account-key.json
+        gcloud auth activate-service-account --key-file=/workspace/enhub-cloud-interns-004fbd59b047.json
         echo "Authentication successful"
 
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -42,7 +41,7 @@ steps:
           --repository="vamsi-generic-repo" \
           --package="source-package" \
           --version="1.0.0" \
-          source.zip
+          --file="source.zip"  # Corrected argument for uploading the file
         echo "Upload completed"
 
 options:
