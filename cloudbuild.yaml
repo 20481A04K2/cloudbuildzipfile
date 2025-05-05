@@ -62,5 +62,66 @@ steps:
           --source="source.zip"
         echo "Upload completed"
 
+  # Step 6: Delete VM if it exists
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Delete VM if exists'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Checking if VM exists..."
+        if gcloud compute instances describe my-vm-instance --zone=asia-east1-b --project=enhub-cloud-interns; then
+          echo "VM exists. Deleting it now..."
+          gcloud compute instances delete my-vm-instance --zone=asia-east1-b --quiet
+        else
+          echo "VM does not exist. Proceeding to create a new VM."
+        fi
+
+  # Step 7: Create a new VM
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Create VM'
+    args:
+      - compute
+      - instances
+      - create
+      - my-vm-instance
+      - --zone=asia-east1-b
+      - --machine-type=e2-micro
+      - --image-family=debian-11
+      - --image-project=debian-cloud
+      - --boot-disk-size=10GB
+      - --tags=http-server,https-server
+      - --scopes=https://www.googleapis.com/auth/cloud-platform
+      - --service-account=1064351983714-compute@developer.gserviceaccount.com
+      - --project=enhub-cloud-interns
+
+  # Step 8: Copy ZIP file to VM
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Copy ZIP to VM'
+    args:
+      - compute
+      - scp
+      - source.zip
+      - sajja_vamsi@my-vm-instance:/home/sajja_vamsi
+      - --zone=asia-east1-b
+      - --project=enhub-cloud-interns
+
+  # Step 9: SSH into VM, unzip the file and run the application
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Unzip and Run Application on VM'
+    args:
+      - compute
+      - ssh
+      - sajja_vamsi@my-vm-instance
+      - --zone=asia-east1-b
+      - --project=enhub-cloud-interns
+      - --command="
+          echo 'Unzipping the source.zip file...';
+          unzip /home/sajja_vamsi/source.zip -d /home/sajja_vamsi/my-app;
+          echo 'Running the application...';
+          cd /home/sajja_vamsi/my-app;
+          ./your-application-executable;
+        "
+
 options:
   logging: CLOUD_LOGGING_ONLY
