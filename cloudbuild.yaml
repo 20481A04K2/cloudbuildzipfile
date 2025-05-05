@@ -95,7 +95,19 @@ steps:
       - --service-account=1064351983714-compute@developer.gserviceaccount.com
       - --project=enhub-cloud-interns
 
-  # Step 8: Copy ZIP file to VM
+  # Step 8: Add SSH key to VM for access (adjust the public key as needed)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Add SSH key to VM'
+    args:
+      - compute
+      - instances
+      - add-metadata
+      - my-vm-instance
+      - --zone=asia-east1-b
+      - --metadata=ssh-keys="sajja_vamsi:$(cat /workspace/ssh_key.pub)"
+      - --project=enhub-cloud-interns
+
+  # Step 9: Copy ZIP file to VM
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Copy ZIP to VM'
     args:
@@ -106,7 +118,7 @@ steps:
       - --zone=asia-east1-b
       - --project=enhub-cloud-interns
 
-  # Step 9: SSH into VM, unzip the file and run the application
+  # Step 10: SSH into VM, unzip the file and run the application
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Unzip and Run Application on VM'
     args:
@@ -118,6 +130,8 @@ steps:
       - --command="
           echo 'Unzipping the source.zip file...';
           unzip /home/sajja_vamsi/source.zip -d /home/sajja_vamsi/my-app;
+          echo 'Listing files in extracted directory:';
+          ls -l /home/sajja_vamsi/my-app;
           echo 'Running the application...';
           cd /home/sajja_vamsi/my-app;
           ./your-application-executable;
