@@ -1,26 +1,35 @@
 steps:
-  # Step 1: Check/create Artifact Registry
+  # Step 1: Check/create Artifact Registry (generic repo)
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        if ! gcloud artifacts repositories describe vamsi-artifact-repo --location=asia-east1 --project=enhub-cloud-interns; then
+        if ! gcloud artifacts repositories describe vamsi-generic-repo --location=asia-east1 --project=enhub-cloud-interns; then
           echo "Repository doesn't exist. Creating now."
-          gcloud artifacts repositories create vamsi-artifact-repo --repository-format=docker --location=asia-east1 --project=enhub-cloud-interns
+          gcloud artifacts repositories create vamsi-generic-repo --repository-format=generic --location=asia-east1 --project=enhub-cloud-interns
         else
           echo "Repository already exists."
         fi
 
-  # Step 2: Build Docker image
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'asia-east1-docker.pkg.dev/enhub-cloud-interns/vamsi-artifact-repo/my-app:latest', '.']
+  # Step 2: Zip the application source code
+  - name: 'gcr.io/cloud-builders/zip'
+    args: ['-r', '/workspace/my-app.zip', '.']
 
-  # Step 3: Push Docker image
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'asia-east1-docker.pkg.dev/enhub-cloud-interns/vamsi-artifact-repo/my-app:latest']
+  # Step 3: Upload ZIP to Artifact Registry (generic)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - artifacts
+      - packages
+      - upload
+      - vamsi-generic-repo/my-app
+      - --location=asia-east1
+      - --package=my-app
+      - --version=latest
+      - --source=/workspace/my-app.zip
+      - --project=enhub-cloud-interns
 
-  # Step 4: Delete existing VM
+  # Step 4: Delete existing VM (if any)
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
@@ -41,41 +50,42 @@ steps:
       - --image-family=debian-11
       - --image-project=debian-cloud
       - --boot-disk-size=10GB
-      - --tags=http-server,https-server
+      - --tags=http-server
       - --scopes=https://www.googleapis.com/auth/cloud-platform
       - --service-account=1064351983714-compute@developer.gserviceaccount.com
       - --project=enhub-cloud-interns
 
-  # Step 6: SSH to install Docker
+  # Step 6: Create firewall rule to allow TCP:8080
   - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - ssh
-      - sajja_vamsi@my-vm-instance
-      - --zone=asia-east1-b
-      - --project=enhub-cloud-interns
-      - --command=sudo apt-get update && sudo apt-get install -y docker.io
-
-  # Step 7: Pull and save Docker image to tar
-  - name: 'gcr.io/cloud-builders/docker'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        docker pull asia-east1-docker.pkg.dev/enhub-cloud-interns/vamsi-artifact-repo/my-app:latest
-        docker save -o /workspace/my-app.tar asia-east1-docker.pkg.dev/enhub-cloud-interns/vamsi-artifact-repo/my-app:latest
+        if ! gcloud compute firewall-rules describe allow-8080 --project=enhub-cloud-interns &>/dev/null; then
+          echo "Creating firewall rule to allow TCP:8080..."
+          gcloud compute firewall-rules create allow-8080 \
+            --allow tcp:8080 \
+            --target-tags=http-server \
+            --description="Allow external traffic on port 8080" \
+            --direction=INGRESS \
+            --priority=1000 \
+            --network=default \
+            --project=enhub-cloud-interns
+        else
+          echo "Firewall rule for 8080 already exists."
+        fi
 
-  # Step 8: Copy tar to VM
+  # Step 7: Copy ZIP file to VM
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
       - scp
-      - /workspace/my-app.tar
-      - sajja_vamsi@my-vm-instance:~
+      - /workspace/my-app.zip
+      - sajja_vamsi@my-vm-instance:~/
       - --zone=asia-east1-b
       - --project=enhub-cloud-interns
 
-  # Step 9: SSH into VM, load and run container
+  # Step 8: SSH into VM, unzip and run application
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
@@ -83,24 +93,12 @@ steps:
       - sajja_vamsi@my-vm-instance
       - --zone=asia-east1-b
       - --project=enhub-cloud-interns
-      - --command=sudo docker load -i my-app.tar && sudo docker run -d -p 8080:8080 asia-east1-docker.pkg.dev/enhub-cloud-interns/vamsi-artifact-repo/my-app:latest
-
-  # ✅ Step 10: Check app and fetch secret version 1
-  - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        echo "Checking if application is running on port 8080..."
-        if gcloud compute ssh sajja_vamsi@my-vm-instance --zone=asia-east1-b --project=enhub-cloud-interns --command='curl -s http://localhost:8080' &>/dev/null; then
-          echo "Application is running. Fetching secret..."
-          gcloud compute ssh sajja_vamsi@my-vm-instance --zone=asia-east1-b --project=enhub-cloud-interns --command='gcloud secrets versions access 1 --secret=my-app-secret --project=enhub-cloud-interns'
-        else
-          echo "Application is NOT running. Skipping secret fetch."
-        fi
-
-images:
-  - 'asia-east1-docker.pkg.dev/enhub-cloud-interns/vamsi-artifact-repo/my-app:latest'
+      - --command= |
+          sudo apt-get update && sudo apt-get install -y unzip python3 python3-pip
+          unzip -o my-app.zip -d my-app
+          cd my-app
+          if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi
+          nohup python3 app.py --host=0.0.0.0 --port=8080 &
 
 options:
   logging: CLOUD_LOGGING_ONLY
