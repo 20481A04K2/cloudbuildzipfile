@@ -18,21 +18,19 @@ steps:
         echo "The size of the downloaded ZIP file:"
         du -sh source.zip
 
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Upload to Artifact Registry'
+  - name: 'gcr.io/cloud-builders/curl'
+    id: 'Upload to Artifact Registry via CURL'
     entrypoint: '/bin/sh'
     args:
       - '-c'
       - |
-        echo "Uploading ZIP to Artifact Registry..."
-        gcloud artifacts generic upload \
-          --project="enhub-cloud-interns" \
-          --location="asia-east1" \
-          --repository="vamsi-generic-repo" \
-          --package="source-package" \
-          --version="1.0.0" \
-          source.zip
+        echo "Uploading ZIP to Artifact Registry using CURL..."
+        curl -X POST \
+          -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+          -H "Content-Type: application/zip" \
+          --data-binary "@source.zip" \
+          "https://asia-east1-artifactregistry.googleapis.com/v1/projects/enhub-cloud-interns/locations/asia-east1/repositories/vamsi-generic-repo/packages/source-package/versions?versionId=1.0.0"
         echo "Upload completed"
 
 options:
-  logging: CLOUD_LOGGING_ONLY
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
