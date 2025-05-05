@@ -6,7 +6,7 @@ def hello_world():
     return """Hello, World! from artifact registry  {
   "db_user": "vamsi",
   "db_pass": "securepassword123",
-  "api_key": "your-api-key-value"
+  "api_key": "your-api-key-value123"
 } """
 
 if __name__ == "__main__":
