@@ -22,14 +22,13 @@ steps:
     id: 'Upload to Artifact Registry'
     args:
       - 'artifacts'
-      - 'repositories'
+      - 'generic'
       - 'upload'
       - '--project=enhub-cloud-interns'
       - '--location=asia-east1'
       - '--repository=vamsi-generic-repo'
-      - '--package=my-app'
-      - '--version=1.0.0'
       - '--file=source.zip'
+      - '--destination=your-destination-path'
     waitFor: ['Download ZIP from GitHub']
     # Explicit logging for this step
     entrypoint: '/bin/sh'
@@ -37,13 +36,12 @@ steps:
       - '-c'
       - |
         echo "Uploading ZIP to Artifact Registry..."
-        gcloud artifacts repositories upload \
+        gcloud artifacts generic upload \
           --project=enhub-cloud-interns \
           --location=asia-east1 \
           --repository=vamsi-generic-repo \
-          --package=my-app \
-          --version=1.0.0 \
-          --file=source.zip
+          --file=source.zip \
+          --destination=your-destination-path
         echo "Upload completed"
 
 # Cloud Logging: Enable Cloud Build logs and log custom messages to Cloud Logging.
