@@ -1,47 +1,35 @@
 steps:
-  # Step 1: Zip the application source code
-  - name: 'gcr.io/cloud-builders/gcloud'
+  # Step 1: Zip the application
+  - name: 'ubuntu'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
         apt-get update && apt-get install -y zip
-        zip -r /workspace/my-app.zip .
+        zip -r my-app.zip .
 
-  # Step 2: Upload the zip to Cloud Storage
-  - name: 'gcr.io/cloud-builders/gsutil'
+  # Step 2: Upload the ZIP to Artifact Registry (generic)
+  - name: 'gcr.io/cloud-builders/curl'
     args:
-      - 'cp'
-      - '/workspace/my-app.zip'
-      - 'gs://vamsi-artifact-bucket/my-app.zip'
+      - '-X'
+      - 'POST'
+      - '-H'
+      - 'Authorization: Bearer $(gcloud auth print-access-token)'
+      - '-F'
+      - 'file=@my-app.zip'
+      - 'https://asia-east1-artifactregistry.googleapis.com/v1/projects/enhub-cloud-interns/locations/asia-east1/repositories/vamsi-generic-repo/files/my-app.zip'
 
-  # Step 3: Delete existing VM if it exists
+  # Step 3: SSH into VM and download the ZIP using curl
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo "Deleting VM if it exists..."
-        gcloud compute instances delete my-vm-instance --zone=asia-east1-b --quiet || true
+        gcloud compute ssh sajja_vamsi@my-vm-instance --zone=asia-east1-b --project=enhub-cloud-interns \
+        --command="curl -o my-app.zip -H \"Authorization: Bearer \$(gcloud auth print-access-token)\" \
+        https://asia-east1-artifactregistry.googleapis.com/v1/projects/enhub-cloud-interns/locations/asia-east1/repositories/vamsi-generic-repo/files/my-app.zip"
 
-  # Step 4: Create new VM
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - instances
-      - create
-      - my-vm-instance
-      - --zone=asia-east1-b
-      - --machine-type=e2-micro
-      - --image-family=debian-11
-      - --image-project=debian-cloud
-      - --boot-disk-size=10GB
-      - --tags=http-server,https-server
-      - --scopes=https://www.googleapis.com/auth/cloud-platform
-      - --service-account=1064351983714-compute@developer.gserviceaccount.com
-      - --project=enhub-cloud-interns
-
-  # Step 5: Install dependencies on VM
+  # Step 4: SSH and unzip & run app
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
@@ -49,30 +37,8 @@ steps:
       - sajja_vamsi@my-vm-instance
       - --zone=asia-east1-b
       - --project=enhub-cloud-interns
-      - --command=sudo apt-get update && sudo apt-get install -y unzip curl python3
-
-  # Step 6: Download the zip from GCS inside VM
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - ssh
-      - sajja_vamsi@my-vm-instance
-      - --zone=asia-east1-b
-      - --project=enhub-cloud-interns
-      - --command=gsutil cp gs://vamsi-artifact-bucket/my-app.zip ~/my-app.zip
-
-  # Step 7: Unzip and run the app inside VM
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - ssh
-      - sajja_vamsi@my-vm-instance
-      - --zone=asia-east1-b
-      - --project=enhub-cloud-interns
-      - --command=unzip -o ~/my-app.zip -d ~/my-app && cd ~/my-app && nohup python3 app.py > output.log 2>&1 &
-
-images:
-  - 'gcr.io/cloud-builders/gcloud'
+      - --command=unzip -o my-app.zip -d my-app && cd my-app && nohup python3 app.py > output.log 2>&1 &
 
 options:
   logging: CLOUD_LOGGING_ONLY
+
