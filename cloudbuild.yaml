@@ -86,7 +86,7 @@ steps:
           'https://asia-east1-artifactregistry.googleapis.com/v1/projects/enhub-cloud-interns/locations/asia-east1/repositories/vamsi-generic-repo/packages/my-app/versions/latest:download' \
           --output ~/my-app.zip"
 
-  # Step 8: Unzip and run app
+  # Step 8: Unzip, run the app, and verify
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
@@ -94,7 +94,13 @@ steps:
       - sajja_vamsi@my-vm-instance
       - --zone=asia-east1-b
       - --project=enhub-cloud-interns
-      - --command=unzip -o ~/my-app.zip -d ~/my-app && cd ~/my-app && nohup python3 app.py > output.log 2>&1 &
+      - --command="
+          unzip -o ~/my-app.zip -d ~/my-app && 
+          cd ~/my-app && 
+          nohup python3 app.py > output.log 2>&1 & 
+          echo 'App started... checking logs...';
+          tail -f output.log
+        "
 
 images:
   - 'gcr.io/cloud-builders/gcloud'
