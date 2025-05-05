@@ -31,8 +31,8 @@ steps:
       - '-c'
       - |
         echo "Uploading zip to Artifact Registry..."
-        ACCESS_TOKEN=$(gcloud auth print-access-token)
-        curl -X POST -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+        ACCESS_TOKEN=$$(gcloud auth print-access-token)
+        curl -X POST -H "Authorization: Bearer $$ACCESS_TOKEN" \
              -H "Content-Type: application/zip" \
              --data-binary @/workspace/my-app.zip \
              "https://asia-east1-artifactregistry.googleapis.com/v1/projects/enhub-cloud-interns/locations/asia-east1/repositories/vamsi-generic-repo/packages/my-app/versions?versionId=latest"
@@ -80,9 +80,9 @@ steps:
       - '-c'
       - |
         echo "Downloading ZIP from Artifact Registry..."
-        ACCESS_TOKEN=$(gcloud auth print-access-token)
+        ACCESS_TOKEN=$$(gcloud auth print-access-token)
         gcloud compute ssh sajja_vamsi@my-vm-instance --zone=asia-east1-b --project=enhub-cloud-interns \
-          --command="curl -X GET -H 'Authorization: Bearer ${ACCESS_TOKEN}' \
+          --command="curl -X GET -H 'Authorization: Bearer $$ACCESS_TOKEN' \
           'https://asia-east1-artifactregistry.googleapis.com/v1/projects/enhub-cloud-interns/locations/asia-east1/repositories/vamsi-generic-repo/packages/my-app/versions/latest:download' \
           --output ~/my-app.zip"
 
