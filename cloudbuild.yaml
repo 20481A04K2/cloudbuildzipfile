@@ -31,12 +31,11 @@ steps:
       - '-c'
       - |
         echo "Uploading zip file to Artifact Registry..."
-        gcloud artifacts docker images upload \
+        gcloud artifacts repositories upload \
           --repository="vamsi-generic-repo" \
           --location="asia-east1" \
           --project="enhub-cloud-interns" \
-          --file="/workspace/my-app.zip" \
-          "gcr.io/enhub-cloud-interns/my-app.zip"
+          --file="/workspace/my-app.zip"
 
   # Step 4: Delete existing VM if exists
   - name: 'gcr.io/cloud-builders/gcloud'
